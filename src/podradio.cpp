@@ -223,7 +223,7 @@ namespace podradio
     extern std::string g_last_xml_error;
     extern int g_xml_error_count;
     void xml_error_handler(void* ctx, const char* msg, ...);
-    void xml_structured_error_handler(void* ctx, const xmlError* error);
+    void xml_structured_error_handler(void* ctx, xmlError* error);  // 注意：libxml2 API要求非const
     void reset_xml_error_state();
     std::string get_last_xml_error();
 
@@ -2084,8 +2084,8 @@ default_region = US
         }
     }
     
-    //修正参数类型为const xmlError*（符合libxml2的xmlStructuredErrorFunc定义）
-    void xml_structured_error_handler(void* ctx, const xmlError* error) {
+    // xmlStructuredErrorFunc 签名要求 xmlError* (非const)，以兼容所有libxml2版本
+    void xml_structured_error_handler(void* ctx, xmlError* error) {
         (void)ctx;  // libxml2回调标准签名，ctx参数未使用
         if (error && error->message) {
             std::string msg = error->message;
