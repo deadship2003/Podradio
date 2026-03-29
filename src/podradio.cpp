@@ -223,7 +223,7 @@ namespace podradio
     extern std::string g_last_xml_error;
     extern int g_xml_error_count;
     void xml_error_handler(void* ctx, const char* msg, ...);
-    void xml_structured_error_handler(void* ctx, xmlError* error);  // 注意：libxml2 API要求非const
+    void xml_structured_error_handler(void* ctx, const xmlError* error);
     void reset_xml_error_state();
     std::string get_last_xml_error();
 
@@ -1081,9 +1081,10 @@ default_region = US
         }
         
         //计算节点行的可用净宽度（使用安全宽度）
-        // 参数：depth - 节点深度, fixed_width - 固定部分宽度（缩进+连接线+图标）
+        // 参数：depth - 节点深度(保留用于未来扩展), fixed_width - 固定部分宽度（缩进+连接线+图标）
         // 返回：标题可用的显示宽度（已预留安全缓冲）
-        int get_title_available_width(int /*depth*/, int fixed_width) const {
+        int get_title_available_width(int depth, int fixed_width) const {
+            (void)depth; // 保留参数供未来使用
             //使用安全内容区宽度，防止Emoji宽度溢出
             int available = metrics_.safe_content_w - fixed_width;
             return (available > 0) ? available : 1;
@@ -1956,8 +1957,8 @@ default_region = US
     // libcurl进度回调函数（CURLOPT_XFERINFOFUNCTION）
     static int curl_progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, 
                                        curl_off_t ultotal, curl_off_t ulnow) {
-        (void)ultotal;  // 上传总量 - 本回调不处理上传
-        (void)ulnow;    // 已上传量 - 本回调不处理上传
+        (void)ultotal; // libcurl标准参数，暂不使用
+        (void)ulnow;   // libcurl标准参数，暂不使用
         CurlProgressData* data = static_cast<CurlProgressData*>(clientp);
         if (!data || data->dl_id.empty()) return 0;
 
@@ -2058,7 +2059,7 @@ default_region = US
     int g_xml_error_count = 0;     // 错误计数
     
     void xml_error_handler(void* ctx, const char* msg, ...) {
-        (void)ctx;  // libxml2回调标准签名，ctx参数未使用
+        (void)ctx; // libxml2标准参数，暂不使用
         char buffer[1024];
         va_list args;
         va_start(args, msg);
@@ -2084,9 +2085,9 @@ default_region = US
         }
     }
     
-    // xmlStructuredErrorFunc 签名要求 xmlError* (非const)，以兼容所有libxml2版本
-    void xml_structured_error_handler(void* ctx, xmlError* error) {
-        (void)ctx;  // libxml2回调标准签名，ctx参数未使用
+    //修正参数类型为const xmlError*（符合libxml2的xmlStructuredErrorFunc定义）
+    void xml_structured_error_handler(void* ctx, const xmlError* error) {
+        (void)ctx; // libxml2标准参数，暂不使用
         if (error && error->message) {
             std::string msg = error->message;
             // 移除末尾的换行符
@@ -3291,15 +3292,8 @@ default_region = US
                 std::string path = local_files_[url];
                 local_files_.erase(url);
                 try {
-                    if (fs::exists(path)) {
-                        if (!fs::remove(path)) {
-                            // 删除失败，记录日志但不抛出异常
-                            EVENT_LOG(fmt::format("Warning: Failed to remove file: {}", path));
-                        }
-                    }
-                } catch (const std::exception& e) {
-                    EVENT_LOG(fmt::format("Error removing file {}: {}", path, e.what()));
-                }
+                    if (fs::exists(path)) fs::remove(path);
+                } catch (...) {}
             }
             save();
         }
@@ -3966,7 +3960,8 @@ default_region = US
         }
 
     private:
-        static void parse_outline(xmlNodePtr node, TreeNodePtr parent, bool /*is_top_level*/ = false) {
+        static void parse_outline(xmlNodePtr node, TreeNodePtr parent, bool is_top_level = false) {
+            (void)is_top_level; // 保留参数供未来使用
             for (; node; node = node->next) {
                 if (node->type != XML_ELEMENT_NODE || xmlStrcmp(node->name, (const xmlChar*)"outline")) continue;
                 
@@ -3987,8 +3982,9 @@ default_region = US
                     try { child->duration = std::stoi(duration_str); } catch (...) {}
                 }
                 
-                // stream_type用于判断是否可下载，当前版本暂不实现下载标记
-                (void)stream_type;  // 保留解析逻辑以备后续扩展
+                // 检查是否可下载（保留用于未来功能扩展）
+                bool is_downloadable = (stream_type == "download");
+                (void)is_downloadable; // 保留变量供未来使用
                 
                 if (item == "topic" && type == "audio") {
                     child->type = NodeType::PODCAST_EPISODE;
@@ -4571,7 +4567,8 @@ default_region = US
     class Persistence {
     public:
         //保存RADIO树到数据库（不再使用cache.json）
-        static void save_cache(const TreeNodePtr& radio, const TreeNodePtr& /*podcast*/) {
+        static void save_cache(const TreeNodePtr& radio, const TreeNodePtr& podcast) {
+            (void)podcast; // PODCAST树已通过save_data()保存到nodes表
             // 保存RADIO树到数据库
             if (radio) {
                 DatabaseManager::instance().save_radio_cache(radio);
@@ -4580,7 +4577,8 @@ default_region = US
         }
         
         //从数据库加载RADIO树（不再使用cache.json）
-        static void load_cache(TreeNodePtr& radio, TreeNodePtr& /*podcast*/) {
+        static void load_cache(TreeNodePtr& radio, TreeNodePtr& podcast) {
+            (void)podcast; // PODCAST树已通过load_data()从nodes表加载
             // 从数据库加载RADIO树
             radio = DatabaseManager::instance().load_radio_cache();
             // PODCAST树已通过load_data()从nodes表加载
@@ -4970,7 +4968,8 @@ default_region = US
             return 16 + static_cast<int>(r * 5) * 36 + static_cast<int>(g * 5) * 6 + static_cast<int>(b * 5);
         }
         
-        static int get_random_color(float /*brightness*/) {
+        static int get_random_color(float brightness) {
+            (void)brightness; // 保留参数供未来使用
             static std::random_device rd;
             static std::mt19937 gen(rd());
             static std::uniform_int_distribution<> dis(16, 231);
@@ -4984,7 +4983,8 @@ default_region = US
             return get_rainbow_color(hue, brightness);
         }
         
-        static int get_fixed_color(const std::string& color_name, float /*brightness*/) {
+        static int get_fixed_color(const std::string& color_name, float brightness) {
+            (void)brightness; // 保留参数供未来使用
             static std::map<std::string, int> color_map = {
                 {"black", COLOR_BLACK}, {"red", COLOR_RED}, {"green", COLOR_GREEN},
                 {"yellow", COLOR_YELLOW}, {"blue", COLOR_BLUE}, {"magenta", COLOR_MAGENTA},
@@ -6045,6 +6045,8 @@ default_region = US
                 mvwaddch(left_win, 0, left_w - 2, ACS_HLINE);
 
                 int line_num = 1;
+                // vh 预留给未来功能：可变高度列表显示
+                // int vh = top_h - 2;
                 for (int i = view_start; i < (int)list.size() && line_num < top_h - 1; ++i) {
                     bool is_sel = (i == selected);
                     bool in_visual = visual_mode && visual_start >= 0 &&
@@ -6278,6 +6280,8 @@ default_region = US
             }
             
             int line_num = 1;
+            // vh 预留给未来功能：可变高度列表显示
+            // int vh = top_h - 2;
             
             if (full_redraw) {
                 // 完全重绘：清空窗口并绘制所有行
@@ -6311,9 +6315,8 @@ default_region = US
                 // 重绘新行（高亮）- 带完整边界检查
                 if (new_screen_row >= 1 && new_screen_row < top_h - 1 && 
                     selected >= 0 && selected < (int)list.size()) {
-                    bool in_visual_new = visual_mode && visual_start >= 0 && 
-                        ((visual_start <= selected && selected <= visual_start) || 
-                         (visual_start <= selected));
+                    // visual模式下，当前选中项总是高亮
+                    bool in_visual_new = visual_mode && visual_start >= 0;
                     draw_line(left_win, new_screen_row, list[selected], true, in_visual_new, tree_line_width, state.current_url);
                 }
             }
@@ -6384,9 +6387,13 @@ default_region = US
             int default_display_w = default_val.empty() ? 0 : Utils::utf8_display_width(default_val);
             int available_w = iw - 6;  // 可用显示宽度（减去边框和前缀）
             
-            // URL太长时截断显示，保持窗口简洁
-            (void)default_display_w;  // 用于后续扩展：可根据长度调整窗口高度
-            (void)available_w;
+            if (default_display_w > available_w) {
+                // URL太长，需要增加一行显示，或截断
+                // 方案1：增加窗口高度显示完整URL（但限制最多7行）
+                // 方案2：截断URL显示
+                // 这里采用截断方案，保持窗口简洁
+                // url_truncated = true; // 保留：未来可用于UI提示
+            }
             
             int iy = h / 2 - ih / 2, ix = (w - iw) / 2;
             
@@ -6454,7 +6461,7 @@ default_region = US
             int left_margin = iw / 6;
             int middle_gap = iw / 3;
             int btn_enter_x = left_margin;
-            int btn_esc_x = left_margin + btn_enter.length() + middle_gap;
+            int btn_esc_x = left_margin + static_cast<int>(btn_enter.length()) + middle_gap;
             
             if (btn_esc_x + static_cast<int>(btn_esc.length()) > iw - 2) {
                 btn_enter_x = 2;
@@ -6753,7 +6760,8 @@ default_region = US
         AppMode last_mode_ = AppMode::RADIO;  // 追踪模式变化
         
         //检查是否需要完全重绘（暂时总是返回true）
-        bool needs_full_redraw(int /*selected*/, size_t /*list_size*/, int /*view_start*/, AppMode /*mode*/) {
+        bool needs_full_redraw(int selected, size_t list_size, int view_start, AppMode mode) {
+            (void)selected; (void)list_size; (void)view_start; (void)mode;
             //暂时禁用增量重绘以确保稳定
             return true;
         }
@@ -6767,7 +6775,8 @@ default_region = US
         }
         
         // V0.05B9n3e5g3m: 添加current_url参数用于高亮当前播放节目
-        void draw_line(WINDOW* win, int y, const DisplayItem& item, bool selected, bool in_visual, int /*max_len*/, const std::string& current_url = "") {
+        void draw_line(WINDOW* win, int y, const DisplayItem& item, bool selected, bool in_visual, int max_len, const std::string& current_url = "") {
+            (void)max_len; // 保留参数供未来使用（内部使用title_max_len）
             // V2.39-FF: 空指针检查
             if (!item.node) return;
             
@@ -7737,7 +7746,8 @@ default_region = US
         }
 
         //帮助弹窗 - 补充完整键定义
-        void draw_help(WINDOW* /*win*/, const MPVController::State& /*state*/, int /*cw*/) {
+        void draw_help(WINDOW* win, const MPVController::State& state, int cw) {
+            (void)win; (void)state; (void)cw; // 保留参数供未来使用
             //帮助内容定义，包含全部键定义
             //更新热键说明
             std::vector<std::string> help_lines = {
@@ -9556,7 +9566,8 @@ default_region = US
         }
         
         //ONLINE模式多选批量订阅
-        void subscribe_online_podcasts_batch(int /*marked_count*/) {
+        void subscribe_online_podcasts_batch(int marked_count) {
+            (void)marked_count; // 保留参数供未来使用
             std::vector<TreeNodePtr> to_subscribe;
             {
                 std::lock_guard<std::recursive_mutex> lock(tree_mutex);
@@ -9645,7 +9656,8 @@ default_region = US
         }
         
         //FAVOURITE模式多选批量订阅
-        void subscribe_favourites_batch(int /*marked_count*/) {
+        void subscribe_favourites_batch(int marked_count) {
+            (void)marked_count; // 保留参数供未来使用
             std::vector<TreeNodePtr> to_subscribe;
             {
                 std::lock_guard<std::recursive_mutex> lock(tree_mutex);
@@ -12869,8 +12881,7 @@ int main(int argc, char* argv[]) {
             std::string cache_dir = std::string(home) + "/.local/share/podradio";
             std::cout << "Purging cache: " << cache_dir << std::endl;
             try {
-                std::uintmax_t removed = podradio::fs::remove_all(cache_dir);
-                std::cout << "Removed " << removed << " files/directories." << std::endl;
+                podradio::fs::remove_all(cache_dir);
                 std::cout << "Cache cleared successfully." << std::endl;
             } catch (const std::exception& e) {
                 std::cerr << "Error: " << e.what() << std::endl;
