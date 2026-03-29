@@ -1,21 +1,24 @@
-# ╔═══════════════════════════════════════════════════════════════════════════╗
-# ║                              P O D R A D I O                              ║
-# ║                   Terminal Podcast/Radio Player                           ║
-# ║                 Author: Panic <Deadship2003@gmail.com>                    ║
-# ╚═══════════════════════════════════════════════════════════════════════════╝
+<div align="center">
 
-<p align="center">
-  <strong>V0.05B9n3e5g3n</strong> | <strong>12,900+ 行代码</strong> | <strong>完整功能</strong>
-</p>
+# 🎧 PodRadio
 
-<p align="center">
-  <a href="#功能特性">功能特性</a> •
-  <a href="#安装">安装</a> •
-  <a href="#使用方法">使用方法</a> •
-  <a href="#快捷键">快捷键</a> •
-  <a href="#配置">配置</a> •
-  <a href="#编译">编译</a>
-</p>
+**Terminal Podcast/Radio Player**
+
+*A powerful ncurses-based media player for the command line*
+
+[![Version](https://img.shields.io/badge/version-v0.05--B9n3e5g3n-blue.svg)](https://github.com/deadship2003/Podradio)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/deadship2003/Podradio)
+
+**12,900+ lines of C++17** • **Complete features** • **Cross-platform**
+
+[功能特性](#-功能特性) •
+[安装](#-安装) •
+[快捷键](#-快捷键) •
+[配置](#-配置) •
+[编译](#-编译)
+
+</div>
 
 ---
 
@@ -31,7 +34,7 @@
 
 ### 播放控制
 - **终端TUI界面** - 美观的ncurses交互界面，双面板布局
-- **播放控制** - 播放/暂停、音量(0-150%)、速度(0.25x-4.0x)
+- **播放控制** - 播放/暂停、音量(0-100%)、速度(0.25x-4.0x)
 - **进度追踪** - 自动保存播放位置，断点续播
 - **播放列表** - 创建和管理播放列表，支持循环/随机播放
 - **下载管理** - 节目下载到本地，离线播放
@@ -59,8 +62,8 @@
 sudo pacman -S mpv ncurses curl libxml2 sqlite fmt nlohmann-json cmake ninja gcc
 
 # 克隆并编译
-git clone https://github.com/YOUR_USERNAME/PodRadio.git
-cd PodRadio
+git clone https://github.com/deadship2003/Podradio.git
+cd Podradio
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 sudo cmake --install build
@@ -355,32 +358,32 @@ PodRadio/
 ## 🏗️ 架构设计
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     表现层 (UI Layer)                        │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │   Terminal UI   │  │   Input Handler │  │  Renderer   │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-├─────────────────────────────────────────────────────────────┤
-│                      业务层 (Business Layer)                 │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │  PodRadioApp    │  │    TreeNode     │  │  Playlist   │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-├─────────────────────────────────────────────────────────────┤
-│                       数据层 (Data Layer)                    │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │ DatabaseManager │  │  CacheManager   │  │OPML Handler │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-├─────────────────────────────────────────────────────────────┤
-│                      服务层 (Service Layer)                  │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │ MPVController   │  │    Network      │  │ RSS Parser  │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-├─────────────────────────────────────────────────────────────┤
-│                       工具层 (Utility Layer)                 │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │     Utils       │  │     Logger      │  │   Config    │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                     表现层 (UI Layer)                        |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  |   Terminal UI   |  |   Input Handler |  |  Renderer   |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
+|                      业务层 (Business Layer)                 |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  |  PodRadioApp    |  |    TreeNode     |  |  Playlist   |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
+|                       数据层 (Data Layer)                    |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  | DatabaseManager |  |  CacheManager   |  |OPML Handler |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
+|                      服务层 (Service Layer)                  |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  | MPVController   |  |    Network      |  | RSS Parser  |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
+|                       工具层 (Utility Layer)                 |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  |     Utils       |  |     Logger      |  |   Config    |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
 ```
 
 ---
@@ -411,8 +414,8 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 ```bash
 # 克隆仓库
-git clone https://github.com/YOUR_USERNAME/PodRadio.git
-cd PodRadio
+git clone https://github.com/deadship2003/Podradio.git
+cd Podradio
 
 # 创建开发分支
 git checkout -b feature/your-feature
@@ -431,7 +434,7 @@ cmake --build build
 
 - **作者**: Panic
 - **邮箱**: Deadship2003@gmail.com
-- **Issues**: [GitHub Issues](https://github.com/YOUR_USERNAME/PodRadio/issues)
+- **Issues**: [GitHub Issues](https://github.com/deadship2003/Podradio/issues)
 
 ---
 
