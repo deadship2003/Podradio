@@ -1,0 +1,18 @@
+# build output
+build/
+
+# cmake
+CMakeCache.txt
+CMakeFiles/
+
+# logs
+*.log
+
+# binaries
+*.o
+*.a
+*.so
+
+# editors
+.vscode/
+.idea/

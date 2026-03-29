@@ -1,0 +1,239 @@
+.\" ╔═══════════════════════════════════════════════════════════════════════════╗
+.\" ║                              P O D R A D I O                              ║
+.\" ║                   Terminal Podcast/Radio Player                           ║
+.\" ║                 Author: Panic <Deadship2003@gmail.com>                    ║
+.\" ╚═══════════════════════════════════════════════════════════════════════════╝
+.TH PODRADIO 1 "March 2025" "PodRadio v0.05-B9n3e5g3n" "User Commands"
+.SH NAME
+podradio \- Terminal-based podcast and radio player
+.SH SYNOPSIS
+.B podradio
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+PodRadio is a terminal-based podcast and radio player with ncurses TUI interface.
+It supports streaming radio, podcast RSS feeds, YouTube channels/videos, and local media files.
+
+.SS Features:
+.IP \(bu 3
+Radio streaming from TuneIn directory
+.IP \(bu 3
+Podcast RSS/Atom feed subscription and playback
+.IP \(bu 3
+YouTube channel, video, and playlist support
+.IP \(bu 3
+Local media file playback (MP3, FLAC, OGG, M4A, WAV, MP4, MKV, WebM)
+.IP \(bu 3
+Beautiful ncurses terminal UI
+.IP \(bu 3
+Download management for offline playback
+.IP \(bu 3
+Favorites and playback history
+.IP \(bu 3
+OPML import/export
+.IP \(bu 3
+Sleep timer
+.IP \(bu 3
+Progress tracking and resume playback
+
+.SH OPTIONS
+.TP
+.B \-h, \-\-help
+Display help message and exit.
+.TP
+.B \-a, \-\-add \fIURL\fR
+Add a subscription from URL (RSS, OPML, or radio stream).
+.TP
+.B \-i, \-\-import \fIFILE\fR
+Import subscriptions from OPML file.
+.TP
+.B \-e, \-\-export \fIFILE\fR
+Export subscriptions to OPML file.
+.TP
+.B \-t, \-\-timer \fITIME\fR
+Set sleep timer. TIME format: \fBN\fRh (hours), \fBN\fRm (minutes), or \fBHH:MM:SS\fR.
+Examples: \fB5h\fR, \fB30m\fR, \fB1:30:00\fR.
+.TP
+.B \-\-purge
+Clear all cache and user data.
+.TP
+.B \-v, \-\-version
+Display version information.
+
+.SH KEYBOARD SHORTCUTS
+
+.SS Navigation
+.TS
+l l .
+Key	Action
+_
+j, Down	Move selection down
+k, Up	Move selection up
+g	Go to first item
+G	Go to last item
+Ctrl+U	Page up (half page)
+Ctrl+D	Page down (half page)
+h	Collapse folder / Go back
+l, Enter	Expand folder / Play item
+.TE
+
+.SS Playback Control
+.TS
+l l .
+Key	Action
+_
+Space, p	Pause / Resume playback
++	Volume up
+\-	Volume down
+[	Decrease playback speed
+]	Increase playback speed
+\\	Reset playback speed to 1.0x
+.TE
+
+.SS Mode Switching
+.TS
+l l .
+Key	Action
+_
+R	Switch to Radio mode
+P	Switch to Podcast mode
+F	Switch to Favorites mode
+H	Switch to History mode
+O	Switch to Online search mode
+M	Cycle through modes
+B	Change region (Online mode)
+.TE
+
+.SS Playlist Management
+.TS
+l l .
+Key	Action
+_
+=	Add selected item to playlist
+o	Toggle sort order (A-Z / Z-A)
+L	Toggle List mode
+J	Move item down in playlist
+K	Move item up in playlist
+C	Clear playlist
+.TE
+
+.SS Mark & Visual Mode
+.TS
+l l .
+Key	Action
+_
+m	Toggle mark on current item
+v	Start visual selection mode
+V	Cancel visual mode / Clear all marks
+d	Delete marked items
+D	Download marked items
+.TE
+
+.SS Other Actions
+.TS
+l l .
+Key	Action
+_
+a	Add new subscription
+e	Edit current item (title/URL)
+f	Add to favorites
+r	Refresh current view
+/	Start search
+n	Next search result
+N	Previous search result
+?	Show help dialog
+q	Quit application
+U	Toggle icon style (ASCII/Emoji)
+S	Toggle scroll mode
+T	Toggle tree lines
+.TE
+
+.SH CONFIGURATION
+Configuration file location: \fI~/.config/podradio/podradio.ini\fR
+
+.SS Configuration Sections:
+.IP \(bu 3
+\fB[general]\fR - General settings (auto_resume, default_volume, etc.)
+.IP \(bu 3
+\fB[download]\fR - Download settings (download_dir, max_concurrent)
+.IP \(bu 3
+\fB[history]\fR - History settings (max_records, max_days)
+.IP \(bu 3
+\fB[youtube]\fR - YouTube download settings (video_max_height, download_mode)
+.IP \(bu 3
+\fB[statusbar_color]\fR - Status bar color customization
+
+.SH DATA STORAGE
+All user data is stored in \fI~/.local/share/podradio/\fR:
+.IP \(bu 3
+\fBpodradio.db\fR - SQLite database (subscriptions, history, cache)
+.IP \(bu 3
+\fBdownloads/\fR - Downloaded media files
+.IP \(bu 3
+\fBcache/\fR - Cached media and metadata
+
+.SH FILES
+.TP
+.I ~/.config/podradio/podradio.ini
+User configuration file.
+.TP
+.I ~/.local/share/podradio/podradio.db
+SQLite database with subscriptions, history, and cache.
+.TP
+.I ~/.local/share/podradio/downloads/
+Default download directory for media files.
+
+.SH DEPENDENCIES
+.TP
+.B mpv (libmpv)
+Media playback backend (required)
+.TP
+.B ncurses
+Terminal UI library (required)
+.TP
+.B libcurl
+Network requests (required)
+.TP
+.B libxml2
+RSS/OPML XML parsing (required)
+.TP
+.B SQLite3
+Data storage (required)
+.TP
+.B fmt
+Text formatting (required)
+.TP
+.B nlohmann_json
+JSON processing (required)
+.TP
+.B yt-dlp
+YouTube support (optional, for YouTube features)
+
+.SH EXAMPLES
+.TP
+Start the TUI interface:
+podradio
+.TP
+Add a podcast subscription:
+podradio -a https://feeds.npr.org/510289/podcast.xml
+.TP
+Import OPML file:
+podradio -i subscriptions.opml
+.TP
+Set sleep timer for 30 minutes:
+podradio -t 30m
+.TP
+Export subscriptions:
+podradio -e my_subscriptions.opml
+
+.SH AUTHOR
+Written by Panic <Deadship2003@gmail.com>
+
+.SH LICENSE
+MIT License - See LICENSE file for details.
+
+.SH BUGS
+Report bugs at: https://github.com/YOUR_USERNAME/PodRadio/issues
+
+.SH SEE ALSO
+.BR mpv(1),
+.BR yt-dlp(1)
