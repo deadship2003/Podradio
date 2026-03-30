@@ -9,15 +9,14 @@
 [![Version](https://img.shields.io/badge/version-v0.05--B9n3e5g3n-blue.svg)](https://github.com/deadship2003/Podradio)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/deadship2003/Podradio)
-[![C++](https://img.shields.io/badge/C++-17-orange.svg)](https://isocpp.org/)
-[![Lines](https://img.shields.io/badge/lines-12%2C934-informational.svg)](https://github.com/deadship2003/Podradio)
 
-**[Features](#-功能特性) • [Install](#-安装) • [Usage](#-使用方法) • [Build](#-编译选项)**
+**12,900+ lines of C++17** • **Complete features** • **Cross-platform**
 
-<img src="https://img.shields.io/badge/TuneIn-📻-red?style=flat-square" alt="TuneIn"/> 
-<img src="https://img.shields.io/badge/Podcast-🎙️-purple?style=flat-square" alt="Podcast"/> 
-<img src="https://img.shields.io/badge/YouTube-📺-red?style=flat-square" alt="YouTube"/> 
-<img src="https://img.shields.io/badge/Local-🎵-blue?style=flat-square" alt="Local"/>
+[功能特性](#-功能特性) •
+[安装](#-安装) •
+[快捷键](#-快捷键) •
+[配置](#-配置) •
+[编译](#-编译)
 
 </div>
 
@@ -26,57 +25,61 @@
 ## 🎵 功能特性
 
 ### 媒体支持
-- **📻 电台流媒体** - TuneIn电台目录完整支持
-- **🎙️ 播客订阅** - RSS/Atom播客订阅与播放
-- **📺 YouTube** - YouTube频道、视频、播放列表
-- **🎵 本地文件** - MP3, FLAC, OGG, M4A, WAV, MP4, MKV, WebM
+| 类型 | 描述 |
+|------|------|
+| 📻 **电台流媒体** | TuneIn电台目录完整支持，全球数千个电台 |
+| 🎙️ **播客订阅** | RSS/Atom播客订阅与播放，自动更新 |
+| 📺 **YouTube** | YouTube频道、视频、播放列表支持 |
+| 🎵 **本地文件** | MP3, FLAC, OGG, M4A, WAV, MP4, MKV, WebM |
 
 ### 播放控制
-- **终端TUI界面** - 美观的ncurses交互界面
-- **播放控制** - 播放/暂停、音量、速度调节
+- **终端TUI界面** - 美观的ncurses交互界面，双面板布局
+- **播放控制** - 播放/暂停、音量(0-100%)、速度(0.25x-4.0x)
 - **进度追踪** - 自动保存播放位置，断点续播
-- **播放列表** - 创建和管理播放列表
-- **下载管理** - 节目下载到本地
+- **播放列表** - 创建和管理播放列表，支持循环/随机播放
+- **下载管理** - 节目下载到本地，离线播放
 
 ### 数据管理
 - **收藏夹** - 收藏喜欢的电台和播客
 - **播放历史** - 完整的播放历史记录
-- **搜索功能** - 全局内容搜索
+- **搜索功能** - 全局内容搜索，支持正则表达式
 - **OPML导入导出** - 订阅备份与恢复
+
+### 高级功能
+- **睡眠定时器** - 设置自动停止播放时间
+- **多选操作** - Visual模式批量标记和操作
+- **图标风格** - ASCII/Emoji图标切换
+- **自定义配色** - 状态栏彩虹效果和自定义颜色
 
 ---
 
 ## 📥 安装
 
-### Linux (Arch Linux) ⭐ 推荐
+### Linux (Arch Linux)
 
 ```bash
 # 安装依赖
-sudo pacman -S --needed mpv ncurses curl libxml2 sqlite fmt nlohmann-json cmake ninja gcc
+sudo pacman -S mpv ncurses curl libxml2 sqlite fmt nlohmann-json cmake ninja gcc
 
 # 克隆并编译
-git clone https://github.com/podradio/podradio.git
-cd podradio
+git clone https://github.com/deadship2003/Podradio.git
+cd Podradio
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel $(nproc)
+cmake --build build --parallel
 sudo cmake --install build
-
-# 运行
-podradio
 ```
 
 ### Linux (Debian/Ubuntu)
 
 ```bash
 # 安装依赖
-sudo apt-get update
-sudo apt-get install -y mpv libmpv-dev libncurses5-dev libncursesw5-dev \
+sudo apt-get install mpv libmpv-dev libncurses5-dev libncursesw5-dev \
     libcurl4-openssl-dev libsqlite3-dev libxml2-dev libfmt-dev \
     nlohmann-json3-dev cmake ninja-build g++
 
 # 编译
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel $(nproc)
+cmake --build build --parallel
 sudo cmake --install build
 ```
 
@@ -84,12 +87,12 @@ sudo cmake --install build
 
 ```bash
 # 安装依赖
-sudo dnf install -y mpv mpv-devel ncurses-devel libcurl-devel sqlite-devel \
+sudo dnf install mpv mpv-devel ncurses-devel libcurl-devel sqlite-devel \
     libxml2-devel fmt-devel nlohmann-json-devel cmake ninja-build gcc-c++
 
 # 编译
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel $(nproc)
+cmake --build build --parallel
 sudo cmake --install build
 ```
 
@@ -101,142 +104,186 @@ brew install mpv ncurses curl sqlite libxml2 fmt nlohmann-json cmake ninja
 
 # 编译
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel $(sysctl -n hw.ncpu)
+cmake --build build --parallel
 sudo cmake --install build
 ```
 
-### Windows (vcpkg + MSVC)
+### Windows (MSYS2/MinGW)
 
-```powershell
-# 安装vcpkg
-git clone https://github.com/microsoft/vcpkg.git
-.\vcpkg\bootstrap-vcpkg.bat
+```bash
+# 安装依赖
+pacman -S mingw-w64-x86_64-mpv mingw-w64-x86_64-ncurses \
+    mingw-w64-x86_64-curl mingw-w64-x86_64-sqlite3 \
+    mingw-w64-x86_64-libxml2 mingw-w64-x86_64-fmt \
+    mingw-w64-x86_64-nlohmann-json mingw-w64-x86_64-cmake \
+    mingw-w64-x86_64-ninja mingw-w64-x86_64-gcc
 
 # 编译
-cmake -B build -G "Visual Studio 17 2022" -A x64 `
-    -DCMAKE_TOOLCHAIN_FILE="vcpkg\scripts\buildsystems\vcpkg.cmake"
-cmake --build build --config Release
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
 ```
 
 ---
 
-## 🔨 交叉编译
+## 🚀 使用方法
 
-### Linux ARM64 (aarch64) - 从 x86_64 交叉编译
+### 命令行参数
 
 ```bash
-# 1. 安装交叉编译工具链
-sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-
-# 2. 添加 ARM64 架构支持
-sudo dpkg --add-architecture arm64
-sudo sed -i 's/deb http/deb [arch=amd64] http/' /etc/apt/sources.list
-
-# 3. 添加 ARM64 软件源
-sudo bash -c 'cat > /etc/apt/sources.list.d/arm64.list << EOF
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted universe multiverse
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted universe multiverse
-EOF'
-
-# 4. 更新并安装 ARM64 依赖
-sudo apt-get update
-sudo apt-get install -y \
-    libncurses5-dev:arm64 libncursesw5-dev:arm64 \
-    libcurl4-openssl-dev:arm64 libsqlite3-dev:arm64 \
-    libxml2-dev:arm64 libfmt-dev:arm64 \
-    nlohmann-json3-dev:arm64 cmake ninja-build
-
-# 5. 尝试安装 MPV ARM64 (可选)
-sudo apt-get install -y libmpv-dev:arm64 || echo "MPV ARM64 需要手动编译"
-
-# 6. 配置并编译
-cmake -B build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-linux.cmake
-cmake --build build --parallel $(nproc)
-
-# 7. 验证生成的二进制文件
-file build/podradio
-# 输出应为: build/podradio: ELF 64-bit LSB executable, ARM aarch64...
+podradio                    # 启动TUI界面
+podradio -a <url>           # 添加订阅源
+podradio -i <file>          # 导入OPML文件
+podradio -e <file>          # 导出OPML文件
+podradio -t <time>          # 睡眠定时器
+podradio --purge            # 清除所有缓存数据
+podradio -h                 # 显示帮助
+podradio -v                 # 显示版本
 ```
 
-### Windows MinGW - 从 Linux 交叉编译
-
+### 时间格式示例
 ```bash
-# 1. 安装 MinGW-w64
-sudo apt-get install -y mingw-w64
-
-# 2. 安装 Windows 依赖 (通过 vcpkg 或手动下载)
-# 方式A: 使用 vcpkg 交叉编译依赖
-git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg
-./bootstrap-vcpkg.sh
-./vcpkg install curl sqlite3 libxml2 fmt nlohmann-json --triplet=x64-mingw-static
-
-# 3. 配置并编译
-cmake -B build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-windows-mingw.cmake \
-    -DCMAKE_PREFIX_PATH=/path/to/vcpkg/installed/x64-mingw-static
-cmake --build build --parallel $(nproc)
-
-# 4. 验证生成的二进制文件
-file build/podradio.exe
-# 输出应为: build/podradio.exe: PE32+ executable (console) x86-64...
-
-# 注意: 运行时需要 mpv.dll 和其他 DLL 文件
-```
-
-### macOS Universal Binary - 同时支持 Intel 和 M1/M2
-
-```bash
-# 1. 确保安装了 Xcode 命令行工具
-xcode-select --install
-
-# 2. 安装通用库 (需要手动编译或使用 Homebrew)
-# Homebrew 不直接支持通用二进制，需要手动处理
-
-# 3. 配置并编译
-cmake -B build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-macos-universal.cmake
-cmake --build build --parallel $(sysctl -n hw.ncpu)
-
-# 4. 验证生成的二进制文件
-lipo -archs build/podradio
-# 输出应为: x86_64 arm64
+podradio -t 30m             # 30分钟后停止
+podradio -t 2h              # 2小时后停止
+podradio -t 1:30:00         # 1小时30分钟后停止
 ```
 
 ---
 
-## 📋 编译选项
+## ⌨️ 快捷键
 
-### CMake 配置参数
+### 导航
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `CMAKE_BUILD_TYPE` | `Release` | 构建类型: Debug/Release |
-| `CMAKE_INSTALL_PREFIX` | `/usr/local` | 安装路径 |
-| `CMAKE_TOOLCHAIN_FILE` | - | 交叉编译工具链文件 |
+| 按键 | 功能 |
+|------|------|
+| `j` / `↓` | 向下移动 |
+| `k` / `↑` | 向上移动 |
+| `g` | 跳到第一项 |
+| `G` | 跳到最后一项 |
+| `Ctrl+U` | 向上翻半页 |
+| `Ctrl+D` | 向下翻半页 |
+| `h` | 折叠文件夹 / 返回上一级 |
+| `l` / `Enter` | 展开文件夹 / 播放选中项 |
 
-### 常用编译命令
+### 播放控制
+
+| 按键 | 功能 |
+|------|------|
+| `Space` / `p` | 暂停 / 继续 |
+| `+` | 音量增加 (步长5%) |
+| `-` | 音量减少 (步长5%) |
+| `[` | 减慢播放速度 |
+| `]` | 加快播放速度 |
+| `\` | 重置播放速度为 1.0x |
+
+### 模式切换
+
+| 按键 | 模式 |
+|------|------|
+| `R` | 电台模式 (Radio) |
+| `P` | 播客模式 (Podcast) |
+| `F` | 收藏夹 (Favorites) |
+| `H` | 历史记录 (History) |
+| `O` | 在线搜索 (Online) |
+| `M` | 循环切换模式 |
+| `B` | 切换地区 (Online模式) |
+
+### 播放列表 (List模式)
+
+| 按键 | 功能 |
+|------|------|
+| `L` | 进入/退出 List 模式 |
+| `=` | 将选中项添加到播放列表 |
+| `o` | 切换排序顺序 (A-Z / Z-A) |
+| `J` | 列表中下移选中项 |
+| `K` | 列表中上移选中项 |
+| `C` | 清空播放列表 |
+
+### 标记与Visual模式
+
+| 按键 | 功能 |
+|------|------|
+| `m` | 标记/取消标记当前项 |
+| `v` | 进入 Visual 选择模式 |
+| `V` | 取消 Visual 模式 / 清除所有标记 |
+| `d` | 删除标记项 |
+| `D` | 下载标记项 |
+
+### 其他操作
+
+| 按键 | 功能 |
+|------|------|
+| `a` | 添加新订阅 |
+| `e` | 编辑当前项 (标题/URL) |
+| `f` | 添加到收藏夹 |
+| `r` | 刷新当前视图 |
+| `/` | 开始搜索 |
+| `n` | 下一个搜索结果 |
+| `N` | 上一个搜索结果 |
+| `?` | 显示帮助对话框 |
+| `U` | 切换图标风格 (ASCII/Emoji) |
+| `S` | 切换滚动模式 |
+| `T` | 切换树形连接线 |
+| `q` | 退出程序 |
+
+---
+
+## ⚙️ 配置
+
+配置文件位置: `~/.config/podradio/podradio.ini`
+
+### 配置示例
+
+```ini
+[general]
+auto_resume = true
+default_volume = 100
+default_speed = 1.0
+play_mode = single
+
+[download]
+download_dir = ~/Music/PodRadio
+max_concurrent = 3
+
+[history]
+history_max_records = 2048
+history_max_days = 1080
+
+[youtube]
+video_max_height = 1080
+video_max_fps = 30
+download_mode = merged
+audio_format = mp3
+audio_quality = 0
+
+[statusbar_color]
+mode = rainbow
+update_interval_ms = 100
+rainbow_speed = 1
+```
+
+### 播放模式
+- `single` - 单曲播放，播放完毕后停止
+- `cycle` - 列表循环，播放完毕后从头开始
+- `random` - 随机播放
+
+---
+
+## 🔨 编译
+
+### CMake 配置选项
 
 ```bash
 # Debug 构建 (包含调试符号)
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --parallel $(nproc)
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
 
 # Release 构建 (优化编译)
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel $(nproc)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 
 # 指定安装路径
-cmake -B build -G Ninja -DCMAKE_INSTALL_PREFIX=/usr
-cmake --build build --parallel $(nproc)
-sudo cmake --install build
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local
 
-# 清理构建目录
-rm -rf build && cmake -B build -G Ninja
+# 使用 vcpkg 工具链
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
 ```
 
 ### CMake 预设
@@ -255,51 +302,17 @@ cmake --preset windows-release
 cmake --build --preset windows-release
 ```
 
----
-
-## 🚀 使用方法
-
-### 命令行参数
+### 交叉编译
 
 ```bash
-podradio                    # 启动TUI界面
-podradio -a <url>           # 添加订阅源
-podradio -i <file>          # 导入OPML
-podradio -e <file>          # 导出OPML
-podradio -t <time>          # 睡眠定时器 (格式: 5h/30m/1:25:15)
-podradio --purge            # 清除缓存
-podradio -h                 # 显示帮助
-podradio -v                 # 显示版本
+# ARM64 Linux
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-linux.cmake
+cmake --build build
+
+# Windows MinGW
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-windows-mingw.cmake
+cmake --build build
 ```
-
-### 快捷键
-
-| 按键 | 功能 |
-|------|------|
-| `j`/`↓` | 向下移动 |
-| `k`/`↑` | 向上移动 |
-| `l`/`Enter` | 播放/展开 |
-| `h` | 返回/折叠 |
-| `Space`/`p` | 暂停/继续 |
-| `+`/`-` | 音量增减 |
-| `[`/`]` | 速度增减 |
-| `a` | 添加订阅 |
-| `d` | 删除 |
-| `f` | 收藏 |
-| `/` | 搜索 |
-| `?` | 帮助 |
-| `q` | 退出 |
-
-### 模式切换
-
-| 按键 | 模式 |
-|------|------|
-| `R` | 电台模式 |
-| `P` | 播客模式 |
-| `F` | 收藏夹 |
-| `H` | 历史记录 |
-| `O` | 在线搜索 |
-| `M` | 循环切换模式 |
 
 ---
 
@@ -311,13 +324,12 @@ PodRadio/
 ├── CMakePresets.json           # CMake 预设
 ├── vcpkg.json                  # vcpkg 依赖管理
 ├── src/
-│   └── podradio.cpp            # 主程序源码 (12,934 行)
+│   └── podradio.cpp            # 主程序源码 (12,900+ 行)
 ├── man/
 │   └── podradio.1              # man 手册页
 ├── cmake/
-│   ├── toolchain-aarch64-linux.cmake  # Linux ARM64 交叉编译
-│   ├── toolchain-windows-mingw.cmake  # Windows MinGW 交叉编译
-│   └── toolchain-macos-universal.cmake # macOS 通用二进制
+│   ├── toolchain-aarch64-linux.cmake  # ARM64 工具链
+│   └── toolchain-windows-mingw.cmake  # Windows MinGW 工具链
 ├── .github/
 │   └── workflows/
 │       └── build.yml           # GitHub Actions CI/CD
@@ -330,16 +342,49 @@ PodRadio/
 
 ## 📋 依赖库
 
-| 库 | 版本要求 | 用途 | Arch 包名 | Debian 包名 |
-|---|---------|------|-----------|-------------|
-| libmpv | 0.34+ | 媒体播放 | `mpv` | `libmpv-dev` |
-| ncurses | 6.0+ | 终端UI | `ncurses` | `libncurses5-dev` |
-| libcurl | 7.80+ | 网络请求 | `curl` | `libcurl4-openssl-dev` |
-| libxml2 | 2.9+ | XML/RSS解析 | `libxml2` | `libxml2-dev` |
-| SQLite3 | 3.40+ | 数据存储 | `sqlite` | `libsqlite3-dev` |
-| fmt | 10.0+ | 格式化输出 | `fmt` | `libfmt-dev` |
-| nlohmann_json | 3.11+ | JSON处理 | `nlohmann-json` | `nlohmann-json3-dev` |
-| yt-dlp | 可选 | YouTube支持 | `yt-dlp` | `yt-dlp` |
+| 库 | 版本要求 | 用途 | 包名 (Arch) |
+|---|---------|------|-------------|
+| libmpv | 0.34+ | 媒体播放后端 | `mpv` |
+| ncurses | 6.0+ | 终端UI | `ncurses` |
+| libcurl | 7.80+ | 网络请求 | `curl` |
+| libxml2 | 2.9+ | XML/RSS解析 | `libxml2` |
+| SQLite3 | 3.40+ | 数据存储 | `sqlite` |
+| fmt | 10.0+ | 格式化输出 | `fmt` |
+| nlohmann_json | 3.11+ | JSON处理 | `nlohmann-json` |
+| yt-dlp | 可选 | YouTube支持 | `yt-dlp` |
+
+---
+
+## 🏗️ 架构设计
+
+```
++-------------------------------------------------------------+
+|                     表现层 (UI Layer)                        |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  |   Terminal UI   |  |   Input Handler |  |  Renderer   |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
+|                      业务层 (Business Layer)                 |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  |  PodRadioApp    |  |    TreeNode     |  |  Playlist   |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
+|                       数据层 (Data Layer)                    |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  | DatabaseManager |  |  CacheManager   |  |OPML Handler |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
+|                      服务层 (Service Layer)                  |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  | MPVController   |  |    Network      |  | RSS Parser  |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
+|                       工具层 (Utility Layer)                 |
+|  +-----------------+  +-----------------+  +-------------+   |
+|  |     Utils       |  |     Logger      |  |   Config    |   |
+|  +-----------------+  +-----------------+  +-------------+   |
++-------------------------------------------------------------+
+```
 
 ---
 
@@ -353,8 +398,6 @@ PodRadio/
 | `downloads/` | 下载的媒体文件 |
 | `cache/` | 缓存的媒体和元数据 |
 
-配置文件位置: `~/.config/podradio/podradio.ini`
-
 ---
 
 ## 📄 许可证
@@ -367,13 +410,31 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 欢迎提交 Issue 和 Pull Request！
 
+### 开发环境设置
+
+```bash
+# 克隆仓库
+git clone https://github.com/deadship2003/Podradio.git
+cd Podradio
+
+# 创建开发分支
+git checkout -b feature/your-feature
+
+# 编译调试版本
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+
+# 运行测试
+./build/podradio
+```
+
 ---
 
 ## 📮 联系方式
 
 - **作者**: Panic
 - **邮箱**: Deadship2003@gmail.com
-- **Issues**: [GitHub Issues](https://github.com/podradio/podradio/issues)
+- **Issues**: [GitHub Issues](https://github.com/deadship2003/Podradio/issues)
 
 ---
 

@@ -4,8 +4,9 @@
 # ║                 Author: Panic <Deadship2003@gmail.com>                    ║
 # ╚═══════════════════════════════════════════════════════════════════════════╝
 #
-# 完整功能版本 - 包含所有12,934行代码
-# 跨平台支持: Windows / Linux / macOS
+# Multi-module build: src/*.cpp → podradio_lib (static library) + podradio (executable)
+# Cross-platform support: Windows / Linux / macOS
+# Testing: BUILD_TESTS=ON enables CTest + GTest integration
 
 cmake_minimum_required(VERSION 3.16)
 
@@ -15,22 +16,27 @@ project(PodRadio
     LANGUAGES CXX
 )
 
-# 版本信息
+# Version info
 set(PODRADIO_VERSION_SUFFIX "B9n3e5g3n")
 set(PODRADIO_FULL_VERSION "${PROJECT_VERSION}-${PODRADIO_VERSION_SUFFIX}")
 
 # =============================================================================
-# C++ 标准设置
+# Build options
+# =============================================================================
+option(BUILD_TESTS "Build unit tests (requires GTest)" OFF)
+
+# =============================================================================
+# C++ standard
 # =============================================================================
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# 导出编译命令
+# Export compile commands for IDE integration
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # =============================================================================
-# 构建类型
+# Build type
 # =============================================================================
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -38,9 +44,10 @@ endif()
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "PodRadio version: ${PODRADIO_FULL_VERSION}")
+message(STATUS "Build tests: ${BUILD_TESTS}")
 
 # =============================================================================
-# 平台检测
+# Platform detection
 # =============================================================================
 if(WIN32)
     set(PODRADIO_PLATFORM "Windows")
@@ -58,7 +65,58 @@ endif()
 message(STATUS "Target platform: ${PODRADIO_PLATFORM}")
 
 # =============================================================================
-# 查找依赖库
+# Source file lists
+# =============================================================================
+# All module source files (excluding main.cpp for library, excluding legacy monolith)
+set(PODRADIO_SOURCES
+    src/app.cpp
+    src/cache_manager.cpp
+    src/config.cpp
+    src/database.cpp
+    src/event_log.cpp
+    src/itunes_search.cpp
+    src/layout.cpp
+    src/logger.cpp
+    src/mpv_controller.cpp
+    src/network.cpp
+    src/online_state.cpp
+    src/parsers.cpp
+    src/persistence.cpp
+    src/progress.cpp
+    src/sleep_timer.cpp
+    src/statusbar_color.cpp
+    src/terminal_state.cpp
+    src/ui.cpp
+    src/utils.cpp
+    src/xml_helpers.cpp
+    src/youtube_cache.cpp
+)
+
+set(PODRADIO_HEADERS
+    include/podradio/app.h
+    include/podradio/cache_manager.h
+    include/podradio/common.h
+    include/podradio/config.h
+    include/podradio/database.h
+    include/podradio/event_log.h
+    include/podradio/icon_manager.h
+    include/podradio/itunes_search.h
+    include/podradio/layout.h
+    include/podradio/logger.h
+    include/podradio/mpv_controller.h
+    include/podradio/network.h
+    include/podradio/online_state.h
+    include/podradio/parsers.h
+    include/podradio/persistence.h
+    include/podradio/progress.h
+    include/podradio/sleep_timer.h
+    include/podradio/statusbar_color.h
+    include/podradio/url_classifier.h
+    include/podradio/utils.h
+)
+
+# =============================================================================
+# Find dependencies
 # =============================================================================
 find_package(Threads REQUIRED)
 find_package(PkgConfig QUIET)
@@ -74,30 +132,21 @@ if(NOT MPV_FOUND)
     endif()
 endif()
 
-# SQLite3 - 优先使用 pkg-config 避免目标名弃用警告
+# SQLite3 - try multiple methods for better cross-platform support
+# Method 1: PkgConfig (most reliable on Linux)
 if(PkgConfig_FOUND)
     pkg_check_modules(SQLITE3_PKG IMPORTED_TARGET sqlite3 QUIET)
-    if(SQLITE3_PKG_FOUND)
-        set(SQLite3_FOUND TRUE)
-        set(SQLITE3_LINK_LIB PkgConfig::SQLITE3_PKG)
-    endif()
 endif()
-if(NOT SQLite3_FOUND)
+# Method 2: CMake config (may use different target names)
+if(NOT SQLITE3_PKG_FOUND)
     find_package(SQLite3 QUIET)
-    if(SQLite3_FOUND)
-        # 优先使用新目标名 SQLite3::SQLite3，避免弃用警告
-        if(TARGET SQLite3::SQLite3)
-            set(SQLITE3_LINK_LIB SQLite3::SQLite3)
-        elseif(TARGET SQLite::SQLite3)
-            set(SQLITE3_LINK_LIB SQLite::SQLite3)
-        endif()
-    endif()
 endif()
-if(NOT SQLite3_FOUND)
+# Method 3: Fallback to find_library
+if(NOT SQLITE3_PKG_FOUND AND NOT SQLite3_FOUND)
     find_library(SQLITE3_LIBRARY NAMES sqlite3)
     if(SQLITE3_LIBRARY)
         set(SQLite3_FOUND TRUE)
-        set(SQLITE3_LINK_LIB ${SQLITE3_LIBRARY})
+        set(SQLITE3_MANUAL TRUE)
     endif()
 endif()
 
@@ -126,19 +175,46 @@ find_package(fmt QUIET)
 find_package(nlohmann_json QUIET)
 
 # ncurses (Linux/macOS)
+# CRITICAL: Must use ncursesw (wide character version) for CJK/Emoji support.
+# The narrow ncurses library cannot properly handle multi-byte UTF-8 characters.
+# Priority: pkg-config ncursesw > find_library ncursesw > Curses module
 if(UNIX)
-    find_package(Curses QUIET)
-    if(NOT CURSES_FOUND)
-        find_library(NCURSES_LIBRARY NAMES ncurses ncursesw)
+    # Method 1: pkg-config for ncursesw (most reliable, ensures wide version)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(NCURSESW_PKG IMPORTED_TARGET ncursesw QUIET)
+    endif()
+    # Method 2: find_library specifically for ncursesw
+    if(NOT NCURSESW_PKG_FOUND)
+        find_library(NCURSES_LIBRARY NAMES ncursesw)
+        find_path(NCURSES_INCLUDE_DIR ncursesw/curses.h)
         if(NCURSES_LIBRARY)
-            set(CURSES_FOUND TRUE)
-            set(CURSES_LIBRARIES ${NCURSES_LIBRARY})
+            set(NCURSESW_FOUND TRUE)
         endif()
+    endif()
+    # Method 3: CMake Curses module (may find narrow version as fallback)
+    if(NOT NCURSESW_PKG_FOUND AND NOT NCURSESW_FOUND)
+        find_package(Curses QUIET)
+        if(CURSES_FOUND)
+            # Check if it found ncursesw (look for ncursesw/curses.h in include dirs)
+            if(CURSES_INCLUDE_DIR AND EXISTS "${CURSES_INCLUDE_DIR}/ncursesw/curses.h")
+                message(STATUS "ncurses: Curses module found wide version")
+            else()
+                message(WARNING "ncurses: Found narrow version only - CJK/Emoji may not display correctly. Install libncursesw-dev for wide character support.")
+            endif()
+        endif()
+    endif()
+    # Set CURSES_FOUND and CURSES_LIBRARIES for linking
+    if(NCURSESW_PKG_FOUND)
+        set(CURSES_FOUND TRUE)
+        set(CURSES_LIBRARIES PkgConfig::NCURSESW_PKG)
+    elseif(NCURSESW_FOUND)
+        set(CURSES_FOUND TRUE)
+        set(CURSES_LIBRARIES ${NCURSES_LIBRARY})
     endif()
 endif()
 
 # =============================================================================
-# 编译器选项
+# Compiler options
 # =============================================================================
 if(MSVC)
     add_compile_options(/W4 /utf-8)
@@ -151,29 +227,30 @@ else()
 endif()
 
 # =============================================================================
-# 可执行文件
+# Static library target: podradio_lib (all modules except main.cpp)
+# This allows unit tests to link against the library without pulling in main()
 # =============================================================================
-add_executable(podradio
-    src/podradio.cpp
+add_library(podradio_lib STATIC
+    ${PODRADIO_SOURCES}
+    ${PODRADIO_HEADERS}
 )
 
-target_include_directories(podradio PRIVATE
+target_include_directories(podradio_lib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# =============================================================================
-# 链接库
-# =============================================================================
-target_link_libraries(podradio PRIVATE
+# Link dependencies to library
+target_link_libraries(podradio_lib PUBLIC
     Threads::Threads
 )
 
 # MPV
 if(MPV_FOUND)
     if(TARGET PkgConfig::MPV)
-        target_link_libraries(podradio PRIVATE PkgConfig::MPV)
+        target_link_libraries(podradio_lib PUBLIC PkgConfig::MPV)
     elseif(MPV_LIBRARY)
-        target_link_libraries(podradio PRIVATE ${MPV_LIBRARY})
+        target_link_libraries(podradio_lib PUBLIC ${MPV_LIBRARY})
     endif()
     message(STATUS "MPV: Found")
 else()
@@ -181,11 +258,25 @@ else()
 endif()
 
 # SQLite3
-if(SQLITE3_LINK_LIB)
-    target_link_libraries(podradio PRIVATE ${SQLITE3_LINK_LIB})
-    message(STATUS "SQLite3: Found (${SQLITE3_LINK_LIB})")
+if(SQLITE3_PKG_FOUND)
+    target_link_libraries(podradio_lib PUBLIC PkgConfig::SQLITE3_PKG)
+    message(STATUS "SQLite3: Found via PkgConfig")
+elseif(TARGET SQLite3::SQLite3)
+    target_link_libraries(podradio_lib PUBLIC SQLite3::SQLite3)
+    message(STATUS "SQLite3: Found (SQLite3::SQLite3)")
+elseif(TARGET SQLite::SQLite3)
+    target_link_libraries(podradio_lib PUBLIC SQLite::SQLite3)
+    message(STATUS "SQLite3: Found (SQLite::SQLite3)")
+elseif(SQLITE3_MANUAL)
+    target_link_libraries(podradio_lib PUBLIC ${SQLITE3_LIBRARY})
+    message(STATUS "SQLite3: Found (${SQLITE3_LIBRARY})")
 elseif(SQLite3_FOUND)
-    message(WARNING "SQLite3 found but no link target available")
+    if(DEFINED SQLite3_LIBRARIES)
+        target_link_libraries(podradio_lib PUBLIC ${SQLite3_LIBRARIES})
+        message(STATUS "SQLite3: Found (${SQLite3_LIBRARIES})")
+    else()
+        message(WARNING "SQLite3 found but no library to link")
+    endif()
 else()
     message(WARNING "SQLite3 not found - database features disabled")
 endif()
@@ -193,9 +284,9 @@ endif()
 # CURL
 if(CURL_FOUND)
     if(TARGET CURL::libcurl)
-        target_link_libraries(podradio PRIVATE CURL::libcurl)
+        target_link_libraries(podradio_lib PUBLIC CURL::libcurl)
     elseif(CURL_LIBRARY)
-        target_link_libraries(podradio PRIVATE ${CURL_LIBRARY})
+        target_link_libraries(podradio_lib PUBLIC ${CURL_LIBRARY})
     endif()
     message(STATUS "CURL: Found")
 else()
@@ -205,9 +296,9 @@ endif()
 # libxml2
 if(LibXml2_FOUND)
     if(TARGET LibXml2::LibXml2)
-        target_link_libraries(podradio PRIVATE LibXml2::LibXml2)
+        target_link_libraries(podradio_lib PUBLIC LibXml2::LibXml2)
     elseif(XML2_LIBRARY)
-        target_link_libraries(podradio PRIVATE ${XML2_LIBRARY})
+        target_link_libraries(podradio_lib PUBLIC ${XML2_LIBRARY})
     endif()
     message(STATUS "libxml2: Found")
 else()
@@ -216,7 +307,7 @@ endif()
 
 # fmt
 if(fmt_FOUND)
-    target_link_libraries(podradio PRIVATE fmt::fmt)
+    target_link_libraries(podradio_lib PUBLIC fmt::fmt)
     message(STATUS "fmt: Found")
 else()
     message(STATUS "fmt: Using bundled version")
@@ -224,28 +315,49 @@ endif()
 
 # nlohmann_json
 if(nlohmann_json_FOUND)
-    target_link_libraries(podradio PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(podradio_lib PUBLIC nlohmann_json::nlohmann_json)
     message(STATUS "nlohmann_json: Found")
 else()
     message(STATUS "nlohmann_json: Using bundled version")
 endif()
 
-# ncurses
+# ncurses (link)
 if(UNIX)
     if(CURSES_FOUND)
-        target_link_libraries(podradio PRIVATE ${CURSES_LIBRARIES})
-        target_include_directories(podradio PRIVATE ${CURSES_INCLUDE_DIR})
-        message(STATUS "ncurses: Found")
-    elseif(NCURSES_LIBRARY)
-        target_link_libraries(podradio PRIVATE ${NCURSES_LIBRARY})
-        message(STATUS "ncurses: Found (${NCURSES_LIBRARY})")
+        if(NCURSESW_PKG_FOUND)
+            target_link_libraries(podradio_lib PUBLIC PkgConfig::NCURSESW_PKG)
+            message(STATUS "ncurses: Linked ncursesw (wide char support)")
+        else()
+            target_link_libraries(podradio_lib PUBLIC ${CURSES_LIBRARIES})
+            if(NCURSES_INCLUDE_DIR)
+                target_include_directories(podradio_lib PUBLIC ${NCURSES_INCLUDE_DIR})
+            endif()
+            message(STATUS "ncurses: Linked (${CURSES_LIBRARIES})")
+        endif()
     else()
         message(WARNING "ncurses not found - TUI disabled")
     endif()
 endif()
 
 # =============================================================================
-# 安装
+# Executable target: podradio (main.cpp + library)
+# =============================================================================
+add_executable(podradio
+    src/main.cpp
+)
+
+target_link_libraries(podradio PRIVATE podradio_lib)
+
+# =============================================================================
+# Testing
+# =============================================================================
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
+# =============================================================================
+# Install
 # =============================================================================
 install(TARGETS podradio
     RUNTIME DESTINATION bin
@@ -255,7 +367,7 @@ install(FILES README.md LICENSE
     DESTINATION share/doc/podradio
 )
 
-# 安装 man 手册页
+# Install man page
 if(UNIX)
     install(FILES man/podradio.1
         DESTINATION share/man/man1
@@ -263,7 +375,7 @@ if(UNIX)
 endif()
 
 # =============================================================================
-# 打包
+# Packaging (CPack)
 # =============================================================================
 set(CPACK_PACKAGE_NAME "PodRadio")
 set(CPACK_PACKAGE_VERSION ${PODRADIO_FULL_VERSION})
@@ -273,7 +385,7 @@ set(CPACK_PACKAGE_CONTACT "Deadship2003@gmail.com")
 
 if(UNIX AND NOT APPLE)
     set(CPACK_GENERATOR "TGZ;DEB")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "mpv,libsqlite3-0,libcurl4,libxml2,libncurses6")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "mpv,libsqlite3-0,libcurl4,libxml2,libncursesw6")
 elseif(APPLE)
     set(CPACK_GENERATOR "TGZ")
 elseif(WIN32)
@@ -283,24 +395,26 @@ endif()
 include(CPack)
 
 # =============================================================================
-# 配置摘要
+# Configuration summary
 # =============================================================================
 message(STATUS "")
-message(STATUS "═══════════════════════════════════════════════════════════════")
+message(STATUS "=====================================================================")
 message(STATUS "  PodRadio ${PODRADIO_FULL_VERSION} Configuration Summary")
-message(STATUS "═══════════════════════════════════════════════════════════════")
+message(STATUS "=====================================================================")
 message(STATUS "  Platform:     ${PODRADIO_PLATFORM}")
 message(STATUS "  Build Type:   ${CMAKE_BUILD_TYPE}")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Compiler:     ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "  Tests:        ${BUILD_TESTS}")
+message(STATUS "  Sources:      ${CMAKE_CURRENT_SOURCE_DIR}/src/ (${CMAKE_CURRENT_SOURCE_DIR}/main.cpp + ${PODRADIO_LIB} library)")
 message(STATUS "")
 message(STATUS "  Dependencies:")
 message(STATUS "    MPV:       ${MPV_FOUND}")
-message(STATUS "    SQLite3:   ${SQLite3_FOUND}")
+message(STATUS "    SQLite3:   ${SQLite3_FOUND} (pkg=${SQLITE3_PKG_FOUND})")
 message(STATUS "    CURL:      ${CURL_FOUND}")
 message(STATUS "    libxml2:   ${LibXml2_FOUND}")
-message(STATUS "    ncurses:   ${CURSES_FOUND}")
+message(STATUS "    ncurses:   ${CURSES_FOUND} (wide=${NCURSESW_PKG_FOUND})")
 message(STATUS "    fmt:       ${fmt_FOUND}")
 message(STATUS "    json:      ${nlohmann_json_FOUND}")
-message(STATUS "═══════════════════════════════════════════════════════════════")
+message(STATUS "=====================================================================")
 message(STATUS "")

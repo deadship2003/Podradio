@@ -13,7 +13,7 @@
         },
         {
             "name": "release",
-            "displayName": "Release Build",
+            "displayName": "Release Build (Native)",
             "inherits": "base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
@@ -21,7 +21,7 @@
         },
         {
             "name": "debug",
-            "displayName": "Debug Build",
+            "displayName": "Debug Build (Native)",
             "inherits": "base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
@@ -57,6 +57,37 @@
                 "rhs": "Windows"
             },
             "generator": "Visual Studio 17 2022"
+        },
+
+        {
+            "name": "cross-base",
+            "hidden": true,
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "linux-aarch64",
+            "displayName": "Cross-compile: Linux ARM64 (aarch64)",
+            "description": "Cross-compile for Linux ARM64 using aarch64-linux-gnu toolchain. Requires: gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libncursesw6-dev:arm64 (or sysroot packages).",
+            "inherits": "cross-base",
+            "binaryDir": "${sourceDir}/build/linux-aarch64",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-aarch64-linux.cmake",
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "windows-mingw",
+            "displayName": "Cross-compile: Windows x64 (MinGW-w64)",
+            "description": "Cross-compile for Windows x64 using MinGW-w64 toolchain. Requires: mingw-w64-common gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64.",
+            "inherits": "cross-base",
+            "binaryDir": "${sourceDir}/build/windows-mingw",
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-windows-mingw.cmake",
+                "CMAKE_BUILD_TYPE": "Release"
+            }
         }
     ],
     "buildPresets": [
@@ -67,6 +98,14 @@
         {
             "name": "debug",
             "configurePreset": "debug"
+        },
+        {
+            "name": "linux-aarch64",
+            "configurePreset": "linux-aarch64"
+        },
+        {
+            "name": "windows-mingw",
+            "configurePreset": "windows-mingw"
         }
     ]
 }
