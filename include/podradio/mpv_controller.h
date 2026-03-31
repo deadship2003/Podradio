@@ -3,6 +3,15 @@
 #include "common.h"
 #include "podradio/url_classifier.h"
 
+#if PODRADIO_HAS_MPV
+    // libmpv is available - use direct API
+#else
+    // No libmpv at compile time - use external mpv process
+    #ifndef _MSC_VER
+        #warning "Compiling without libmpv - will use external mpv process (configure mpv_path in config.ini)"
+    #endif
+#endif
+
 namespace podradio {
 
 // =========================================================
@@ -148,13 +157,19 @@ public:
     bool is_ytdl_available() const;
 
     // Get raw mpv handle (advanced use)
+#if PODRADIO_HAS_MPV
     mpv_handle* get_handle();
+#else
+    void* get_handle();  // Returns nullptr in external mode
+#endif
 
     // Set end-of-file callback
     void set_end_file_callback(EndFileCallback callback);
 
 private:
+#if PODRADIO_HAS_MPV
     mpv_handle* ctx_ = nullptr;
+#endif
     std::thread mpv_thread_;
     std::atomic<bool> running_{false};
     std::mutex mtx_;
@@ -163,11 +178,27 @@ private:
     std::string ytdl_path_;
     EndFileCallback end_file_callback_;
 
+    // External mpv process mode (used when libmpv not available at compile time)
+    bool use_external_mpv_ = false;
+    std::string external_mpv_path_;
+#ifdef _WIN32
+    HANDLE external_mpv_process_ = INVALID_HANDLE_VALUE;
+    HANDLE external_mpv_stdin_ = INVALID_HANDLE_VALUE;
+    HANDLE external_mpv_stdout_ = INVALID_HANDLE_VALUE;
+#else
+    pid_t external_mpv_pid_ = -1;
+    int external_mpv_stdin_fd_ = -1;
+    int external_mpv_stdout_fd_ = -1;
+#endif
+
     // Event loop thread function
     void event_loop();
 
     // Update internal state from mpv properties
     void update_state();
+
+    // Launch external mpv process (used in external mode)
+    void launch_process(const std::string& cmd);
 };
 
 } // namespace podradio

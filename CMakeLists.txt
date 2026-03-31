@@ -213,6 +213,21 @@ if(UNIX)
     endif()
 endif()
 
+# PDCurses (Windows ncurses replacement)
+if(WIN32)
+    find_package(PDCurses QUIET)
+    if(NOT PDCurses_FOUND)
+        find_library(PDCURSES_LIBRARY NAMES pdcurses curses)
+        find_path(PDCURSES_INCLUDE_DIR curses.h)
+        if(PDCURSES_LIBRARY)
+            set(PDCURSES_FOUND TRUE)
+            message(STATUS "PDCurses: Found (${PDCURSES_LIBRARY})")
+        else()
+            message(WARNING "PDCurses not found - TUI disabled on Windows")
+        endif()
+    endif()
+endif()
+
 # =============================================================================
 # Compiler options
 # =============================================================================
@@ -224,6 +239,12 @@ else()
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
         add_compile_options(-O3)
     endif()
+endif()
+
+# MinGW: static linking for Windows
+if(MINGW)
+    add_compile_options(-static -static-libgcc -static-libstdc++)
+    add_link_options(-static -static-libgcc -static-libstdc++)
 endif()
 
 # =============================================================================
@@ -337,6 +358,20 @@ if(UNIX)
     else()
         message(WARNING "ncurses not found - TUI disabled")
     endif()
+endif()
+
+# PDCurses (link) - Windows only
+if(WIN32 AND PDCURSES_FOUND)
+    target_link_libraries(podradio_lib PUBLIC ${PDCURSES_LIBRARY})
+    if(PDCURSES_INCLUDE_DIR)
+        target_include_directories(podradio_lib PUBLIC ${PDCURSES_INCLUDE_DIR})
+    endif()
+    message(STATUS "PDCurses: Linked (${PDCURSES_LIBRARY})")
+endif()
+
+# Windows: Winsock for networking (required by libcurl)
+if(WIN32)
+    target_link_libraries(podradio_lib PUBLIC ws2_32)
 endif()
 
 # =============================================================================

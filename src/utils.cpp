@@ -9,8 +9,15 @@ namespace podradio
 
     std::string Utils::expand_path(const std::string& path) {
         if (path.empty() || path[0] != '~') return path;
-        const char* home = std::getenv("HOME");
-        return home ? std::string(home) + path.substr(1) : path;
+        std::string home = get_home_dir();
+        std::string separator = path.substr(1, 1);
+        std::string remainder = path.substr(1);
+    #ifdef _WIN32
+        // On Windows, ~/ should expand to USERPROFILE\path
+        return home + remainder;
+    #else
+        return home + remainder;
+    #endif
     }
 
     std::string Utils::get_download_dir() { return expand_path("~" + std::string(DOWNLOAD_DIR)); }
@@ -37,11 +44,19 @@ namespace podradio
     std::string Utils::execute_command(const std::string& cmd) {
         std::array<char, 4096> buffer;
         std::string result;
+    #ifdef _WIN32
+        FILE* pipe = _popen(cmd.c_str(), "r");
+        if (pipe) {
+            while (fgets(buffer.data(), buffer.size(), pipe)) result += buffer.data();
+            _pclose(pipe);
+        }
+    #else
         FILE* pipe = popen((cmd + " 2>&1").c_str(), "r");
         if (pipe) {
             while (fgets(buffer.data(), buffer.size(), pipe)) result += buffer.data();
             pclose(pipe);
         }
+    #endif
         while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) result.pop_back();
         return result;
     }
@@ -73,7 +88,11 @@ namespace podradio
     }
 
     bool Utils::has_gui() {
+    #ifdef _WIN32
+        return true;  // Windows always has GUI support
+    #else
         return std::getenv("DISPLAY") != nullptr || std::getenv("WAYLAND_DISPLAY") != nullptr;
+    #endif
     }
 
     // =========================================================

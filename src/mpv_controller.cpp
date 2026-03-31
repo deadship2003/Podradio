@@ -2,6 +2,7 @@
 #include "podradio/utils.h"
 #include "podradio/logger.h"
 #include "podradio/event_log.h"
+#include "podradio/config.h"
 
 namespace podradio
 {
@@ -13,6 +14,8 @@ MPVController::~MPVController() {
 }
 
 bool MPVController::initialize() {
+#if PODRADIO_HAS_MPV
+    // === libmpv API mode (Linux/macOS with libmpv installed) ===
     // Only switch LC_NUMERIC, protect LC_CTYPE for wide character environment
     // mpv_create() detects locale and prints warnings, but only LC_NUMERIC needs to be "C"
     setlocale(LC_NUMERIC, "C");
@@ -62,6 +65,25 @@ bool MPVController::initialize() {
     running_ = true;
     mpv_thread_ = std::thread(&MPVController::event_loop, this);
     return true;
+#else
+    // === External mpv process mode (Windows without libmpv) ===
+    // Read mpv path from config.ini [player] section
+    external_mpv_path_ = IniConfig::instance().get_mpv_path();
+    ytdl_path_ = IniConfig::instance().get_ytdl_path();
+
+    if (!external_mpv_path_.empty()) {
+        use_external_mpv_ = true;
+        ytdl_available_ = !ytdl_path_.empty();
+        state_.volume = MAX_VOLUME;
+        state_.speed = DEFAULT_SPEED;
+        LOG(fmt::format("[MPV] External mode: mpv={}", external_mpv_path_));
+        LOG(fmt::format("[MPV] yt-dlp: {}", ytdl_available_ ? ytdl_path_ : "not found"));
+        return true;
+    }
+
+    LOG("[MPV] No mpv available (no libmpv and no mpv_path in config.ini)");
+    return false;
+#endif
 }
 
 void MPVController::play_audio(const std::string& url) {
@@ -71,6 +93,7 @@ void MPVController::play_audio(const std::string& url) {
     }
     LOG(fmt::format("[MPV] Playing audio: {}", url));
 
+#if PODRADIO_HAS_MPV
     if (!ctx_) {
         LOG("[MPV] Error: ctx_ is null");
         return;
@@ -91,6 +114,20 @@ void MPVController::play_audio(const std::string& url) {
     int pause_val = 0;
     mpv_set_property(ctx_, "pause", MPV_FORMAT_FLAG, &pause_val);
     LOG("[MPV] Ensured playing (pause=no)");
+#else
+    // External mpv process mode
+    if (!use_external_mpv_) return;
+    stop();
+    std::string ytdl_opt = ytdl_available_ ?
+        fmt::format(" --ytdl --ytdl-path=\"{}\"", ytdl_path_) : "";
+    std::string cmd = fmt::format("\"{}\" --no-video --force-seekable=yes --quiet{} \"{}\"",
+        external_mpv_path_, ytdl_opt, url);
+    launch_process(cmd);
+    state_.has_media = true;
+    state_.paused = false;
+    state_.current_url = url;
+    EVENT_LOG(fmt::format("Play: {}", url));
+#endif
 }
 
 void MPVController::play_video(const std::string& url) {
@@ -345,27 +382,49 @@ void MPVController::play_list_from(const std::vector<std::string>& urls, int sta
 }
 
 void MPVController::toggle_pause() {
+#if PODRADIO_HAS_MPV
     int p = 0;
     mpv_get_property(ctx_, "pause", MPV_FORMAT_FLAG, &p);
     p = !p;
     mpv_set_property(ctx_, "pause", MPV_FORMAT_FLAG, &p);
+#else
+    state_.paused = !state_.paused;
+#endif
 }
 
 void MPVController::pause() {
+#if PODRADIO_HAS_MPV
     int p = 1;
     mpv_set_property(ctx_, "pause", MPV_FORMAT_FLAG, &p);
+#else
+    state_.paused = true;
+#endif
 }
 
 void MPVController::stop() {
+#if PODRADIO_HAS_MPV
     const char* cmd[] = {"stop", nullptr};
     mpv_command(ctx_, cmd);
+#else
+    if (external_mpv_process_ != INVALID_HANDLE_VALUE) {
+        TerminateProcess(external_mpv_process_, 0);
+        CloseHandle(external_mpv_process_);
+        external_mpv_process_ = INVALID_HANDLE_VALUE;
+    }
+    state_.has_media = false;
+    state_.paused = true;
+    state_.time_pos = 0.0;
+    state_.media_duration = 0.0;
+#endif
 }
 
 void MPVController::set_volume(int vol) {
     if (vol < 0) vol = 0;
     if (vol > MAX_VOLUME) vol = MAX_VOLUME;
+#if PODRADIO_HAS_MPV
     int64_t v = vol;
     mpv_set_property(ctx_, "volume", MPV_FORMAT_INT64, &v);
+#endif
     state_.volume = vol;
 }
 
@@ -390,7 +449,9 @@ double MPVController::get_speed() const {
 void MPVController::set_speed(double s) {
     if (s < MIN_SPEED) s = MIN_SPEED;
     if (s > MAX_SPEED) s = MAX_SPEED;
+#if PODRADIO_HAS_MPV
     mpv_set_property(ctx_, "speed", MPV_FORMAT_DOUBLE, &s);
+#endif
     state_.speed = s;
 }
 
@@ -404,28 +465,38 @@ void MPVController::speed_down() {
 
 void MPVController::reset_speed() {
     double s = DEFAULT_SPEED;
+#if PODRADIO_HAS_MPV
     mpv_set_property(ctx_, "speed", MPV_FORMAT_DOUBLE, &s);
+#endif
+    state_.speed = s;
 }
 
 void MPVController::adjust_speed(bool faster) {
-    double s = DEFAULT_SPEED;
+    double s = state_.speed;
+#if PODRADIO_HAS_MPV
     mpv_get_property(ctx_, "speed", MPV_FORMAT_DOUBLE, &s);
+#endif
     s = faster ? s * (1.0 + SPEED_STEP) : s / (1.0 + SPEED_STEP);
     if (s < MIN_SPEED) s = MIN_SPEED;
     if (s > MAX_SPEED) s = MAX_SPEED;
+#if PODRADIO_HAS_MPV
     mpv_set_property(ctx_, "speed", MPV_FORMAT_DOUBLE, &s);
+#endif
+    state_.speed = s;
 }
 
 void MPVController::seek_absolute(double seconds) {
-    std::string cmd = fmt::format("seek {} absolute", seconds);
+#if PODRADIO_HAS_MPV
     const char* argv[] = {"seek", fmt::format("{}", seconds).c_str(), "absolute", nullptr};
-    // Use command API for seeking
     mpv_command(ctx_, argv);
+#endif
 }
 
 void MPVController::seek_relative(double seconds) {
+#if PODRADIO_HAS_MPV
     const char* argv[] = {"seek", fmt::format("{}", seconds).c_str(), nullptr};
     mpv_command(ctx_, argv);
+#endif
 }
 
 double MPVController::get_position() const {
@@ -462,15 +533,19 @@ std::string MPVController::get_current_url() const {
 }
 
 void MPVController::set_loop_file(bool loop) {
+#if PODRADIO_HAS_MPV
     const char* val = loop ? "inf" : "no";
     mpv_set_option_string(ctx_, "loop-file", val);
     LOG(fmt::format("[MPV] loop-file set to: {}", val));
+#endif
 }
 
 void MPVController::set_loop_playlist(bool loop) {
+#if PODRADIO_HAS_MPV
     const char* val = loop ? "inf" : "no";
     mpv_set_option_string(ctx_, "loop-playlist", val);
     LOG(fmt::format("[MPV] loop-playlist set to: {}", val));
+#endif
 }
 
 MPVController::State MPVController::get_state() {
@@ -482,14 +557,21 @@ bool MPVController::is_ytdl_available() const {
     return ytdl_available_;
 }
 
+#if PODRADIO_HAS_MPV
 mpv_handle* MPVController::get_handle() {
     return ctx_;
 }
+#else
+void* MPVController::get_handle() {
+    return nullptr;
+}
+#endif
 
 void MPVController::set_end_file_callback(EndFileCallback callback) {
     end_file_callback_ = callback;
 }
 
+#if PODRADIO_HAS_MPV
 void MPVController::event_loop() {
     while (running_) {
         mpv_event* event = mpv_wait_event(ctx_, 0.05);
@@ -598,6 +680,32 @@ void MPVController::update_state() {
     if (t) mpv_free(t);
     if (codec) mpv_free(codec);
     if (vcodec) mpv_free(vcodec);
+}
+#endif // PODRADIO_HAS_MPV
+
+void MPVController::launch_process(const std::string& cmd) {
+#ifdef _WIN32
+    // Windows: launch mpv as a detached process
+    STARTUPINFOA si = {sizeof(si)};
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdInput = NULL;
+    si.hStdOutput = NULL;
+    si.hStdError = NULL;
+    PROCESS_INFORMATION pi = {};
+    std::string cmd_copy = cmd;
+
+    if (CreateProcessA(NULL, &cmd_copy[0], NULL, NULL, FALSE,
+                       CREATE_NO_WINDOW | DETACHED_PROCESS, NULL, NULL, &si, &pi)) {
+        external_mpv_process_ = pi.hProcess;
+        CloseHandle(pi.hThread);
+        LOG(fmt::format("[MPV] Launched external process: {}", cmd));
+    } else {
+        LOG(fmt::format("[MPV] Failed to launch process: {}", cmd));
+    }
+#else
+    // POSIX: launch as background process (fork + exec)
+    (void)cmd; // External mode not expected on Linux when libmpv is available
+#endif
 }
 
 } // namespace podradio

@@ -1,6 +1,12 @@
 #include "podradio/common.h"
 
-#include <unistd.h>  // write()
+#ifndef _WIN32
+    #include <unistd.h>
+    #include <termios.h>
+    #include <sys/ioctl.h>
+#else
+    #include <windows.h>
+#endif
 
 namespace podradio
 {
@@ -17,7 +23,9 @@ namespace podradio
     int g_xml_error_count = 0;
 
     // Terminal state
+#ifndef _WIN32
     struct termios g_original_termios;
+#endif
     bool g_termios_saved = false;
     bool g_ncurses_initialized = false;
     int g_original_lines = 0;
@@ -32,21 +40,33 @@ namespace podradio
 
     // Save original terminal attributes
     void save_terminal_state() {
+#ifndef _WIN32
         if (tcgetattr(STDIN_FILENO, &g_original_termios) == 0) {
             g_termios_saved = true;
         }
-        // Save original terminal size
         struct winsize ws;
         if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) == 0) {
             g_original_lines = ws.ws_row;
             g_original_cols = ws.ws_col;
         }
+#else
+        // Windows: terminal state saved by PDCurses / Win32 console API
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (GetConsoleScreenBufferInfo(hStdOut, &csbi)) {
+            g_original_lines = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+            g_original_cols = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+        }
+        g_termios_saved = true;
+#endif
     }
 
     // Restore original terminal attributes
     void restore_terminal_state() {
         if (g_termios_saved) {
+#ifndef _WIN32
             tcsetattr(STDIN_FILENO, TCSANOW, &g_original_termios);
+#endif
             g_termios_saved = false;
         }
     }
@@ -58,10 +78,14 @@ namespace podradio
             endwin();
             g_ncurses_initialized = false;
         }
-        // Restore cursor using write() for signal safety
+        // Restore cursor
         const char cursor_on[] = "\033[?25h";
+#ifndef _WIN32
         ::write(STDOUT_FILENO, cursor_on, sizeof(cursor_on) - 1);
-        // Reset terminal attributes
+#else
+        DWORD written;
+        WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), cursor_on, sizeof(cursor_on) - 1, &written, NULL);
+#endif
         restore_terminal_state();
         fflush(stdout);
         fflush(stderr);
@@ -85,38 +109,18 @@ namespace podradio
     }
 
     // Register signal handlers for SIGINT, SIGTERM, SIGQUIT, SIGSEGV, SIGABRT
-    // FIX: Use sigaction() for SIGTERM/SIGQUIT for more reliable handling
     void setup_signal_handlers() {
-        // SIGINT: use signal() since it only sets a flag
         signal(SIGINT, signal_handler);
-
-        // SIGTERM: use sigaction() for reliable handler
-        struct sigaction sa_term;
-        sigemptyset(&sa_term.sa_mask);
-        sa_term.sa_flags = 0;
-        sa_term.sa_handler = signal_handler;
-        sigaction(SIGTERM, &sa_term, nullptr);
-
-        // SIGQUIT: use sigaction() for reliable handler
-        struct sigaction sa_quit;
-        sigemptyset(&sa_quit.sa_mask);
-        sa_quit.sa_flags = 0;
-        sa_quit.sa_handler = signal_handler;
-        sigaction(SIGQUIT, &sa_quit, nullptr);
-
-        // SIGSEGV: use sigaction()
-        struct sigaction sa_segv;
-        sigemptyset(&sa_segv.sa_mask);
-        sa_segv.sa_flags = 0;
-        sa_segv.sa_handler = signal_handler;
-        sigaction(SIGSEGV, &sa_segv, nullptr);
-
-        // SIGABRT: use sigaction()
-        struct sigaction sa_abrt;
-        sigemptyset(&sa_abrt.sa_mask);
-        sa_abrt.sa_flags = 0;
-        sa_abrt.sa_handler = signal_handler;
-        sigaction(SIGABRT, &sa_abrt, nullptr);
+#ifndef _WIN32
+        signal(SIGTERM, signal_handler);
+        signal(SIGQUIT, signal_handler);
+        signal(SIGSEGV, signal_handler);
+        signal(SIGABRT, signal_handler);
+#else
+        // Windows: handle Ctrl+C and Ctrl+Break
+        signal(SIGTERM, signal_handler);
+        signal(SIGABRT, signal_handler);
+#endif
     }
 
 } // namespace podradio

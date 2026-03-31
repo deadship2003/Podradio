@@ -144,9 +144,24 @@ namespace podradio
         return get_bool("network", "ssl_verify_feed", true);
     }
 
+    std::string IniConfig::get_mpv_path() const {
+#ifdef _WIN32
+        return get("player", "mpv_path", "");
+#else
+        return get("player", "mpv_path", "mpv");
+#endif
+    }
+
+    std::string IniConfig::get_ytdl_path() const {
+#ifdef _WIN32
+        return get("player", "ytdl_path", "");
+#else
+        return get("player", "ytdl_path", "yt-dlp");
+#endif
+    }
+
     std::string IniConfig::get_config_file() {
-        const char* home = std::getenv("HOME");
-        return home ? std::string(home) + CONFIG_DIR + "/config.ini" : "";
+        return get_home_dir() + CONFIG_DIR + "/config.ini";
     }
 
     void IniConfig::create_default(const std::string& path) {
@@ -309,6 +324,19 @@ time_adjust = true
 fixed_color = cyan
 # Rainbow mode speed (1-10)
 rainbow_speed = 1
+
+# ============================================================
+# [Player Settings]
+# ============================================================
+[player]
+# Path to mpv executable
+# Linux/macOS: leave empty to use libmpv API (default)
+# Windows:   set to mpv.exe path, e.g. "D:\Programs\MPV\mpv.exe"
+mpv_path =
+# Path to yt-dlp executable (for YouTube support)
+# Linux/macOS: leave empty to auto-detect via PATH
+# Windows:   set to yt-dlp.exe path, e.g. "D:\Programs\yt-dlp\yt-dlp.exe"
+ytdl_path =
 
 # ============================================================
 # [Advanced Settings]

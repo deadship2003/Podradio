@@ -14,7 +14,30 @@
 #include <iostream>
 #include <string>
 #include <cstdlib>
-#include <getopt.h>
+#ifdef _WIN32
+    // Portable getopt_long for Windows
+    extern "C" {
+        int getopt(int argc, char* const argv[], const char* optstring);
+        extern char* optarg;
+        extern int optind, opterr, optopt;
+    }
+    // Minimal getopt_long implementation
+    struct option { const char* name; int has_arg; int* flag; int val; };
+    static int getopt_long(int argc, char* const argv[], const char* optstring,
+                           const struct option* longopts, int* longindex) {
+        int opt = getopt(argc, argv, optstring);
+        if (opt == -1 || !longopts) return opt;
+        // Also check for --long-option
+        if (optind > 0 && strcmp(argv[optind - 1], "--") == 0) {
+            return -1;
+        }
+        return opt;
+    }
+    #define no_argument 0
+    #define required_argument 1
+#else
+    #include <getopt.h>
+#endif
 #include <chrono>
 #include <thread>
 #include <filesystem>
@@ -104,17 +127,14 @@ int main(int argc, char* argv[]) {
 
     // Handle --purge to clear cache
     if (purge) {
-        const char* home = std::getenv("HOME");
-        if (home) {
-            std::string cache_dir = std::string(home) + "/.local/share/podradio";
-            std::cout << "Purging cache: " << cache_dir << std::endl;
-            try {
-                std::uintmax_t removed = fs::remove_all(cache_dir);
-                std::cout << "Removed " << removed << " files/directories." << std::endl;
-                std::cout << "Cache cleared successfully." << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "Error: " << e.what() << std::endl;
-            }
+        std::string cache_dir = get_home_dir() + DATA_DIR;
+        std::cout << "Purging cache: " << cache_dir << std::endl;
+        try {
+            std::uintmax_t removed = fs::remove_all(cache_dir);
+            std::cout << "Removed " << removed << " files/directories." << std::endl;
+            std::cout << "Cache cleared successfully." << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
         }
         return 0;
     }

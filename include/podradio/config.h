@@ -45,6 +45,10 @@ namespace podradio
         bool get_ssl_verify() const;       // Default: false (skip SSL verification)
         bool get_ssl_verify_feed() const;  // Default: true (verify SSL for feed URLs)
 
+        // External player settings
+        std::string get_mpv_path() const;
+        std::string get_ytdl_path() const;
+
         // Get config file path
         static std::string get_config_file();
 

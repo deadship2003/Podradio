@@ -80,12 +80,16 @@
 #include <map>
 #include <set>
 #include <queue>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <fcntl.h>
 #include <deque>
 #include <chrono>
 #include <regex>
+#ifndef _WIN32
 #include <getopt.h>
+#endif
 #include <ctime>
 #include <cmath>      // for std::isnan / std::isinf
 #include <random>
@@ -94,9 +98,14 @@
 #include <cstdarg>    // va_list for xml_error_handler
 #include <signal.h>
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <termios.h>  // for saving/restoring terminal attributes
 #include <sys/ioctl.h> // for getting terminal window size
 #include <sys/wait.h>  // for WIFEXITED/WEXITSTATUS macros
+#else
+#include <windows.h>
+#include <io.h>
+#endif
 
 // =========================================================
 // External Library Includes
@@ -111,8 +120,14 @@
     #define PODRADIO_HAS_MPV 0
 #endif
 
-#if __has_include(<ncurses.h>)
+#if __has_include(<ncursesw/curses.h>)
+    #include <ncursesw/curses.h>
+    #define PODRADIO_HAS_NCURSES 1
+#elif __has_include(<ncurses.h>)
     #include <ncurses.h>
+    #define PODRADIO_HAS_NCURSES 1
+#elif __has_include(<curses.h>)
+    #include <curses.h>
     #define PODRADIO_HAS_NCURSES 1
 #else
     #define PODRADIO_HAS_NCURSES 0
@@ -162,9 +177,15 @@ namespace podradio
     constexpr const char* AUTHOR       = "Panic";
     constexpr const char* EMAIL        = "Deadship2003@gmail.com";
     constexpr const char* BUILD_TIME   = "Mar 27 2026 19:45:00";
+#ifdef _WIN32
+    constexpr const char* DATA_DIR     = "\\AppData\\Local\\PodRadio";
+    constexpr const char* CONFIG_DIR   = "\\AppData\\Roaming\\PodRadio";
+    constexpr const char* DOWNLOAD_DIR = "\\Downloads\\PodRadio";
+#else
     constexpr const char* DATA_DIR     = "/.local/share/podradio";
     constexpr const char* CONFIG_DIR   = "/.config/podradio";
     constexpr const char* DOWNLOAD_DIR = "/Downloads/PodRadio";
+#endif
 
     // =========================================================
     // Configuration constants - eliminate magic numbers
@@ -457,14 +478,28 @@ namespace podradio
     extern int g_xml_error_count;
 
     // Terminal state
+#ifndef _WIN32
     extern struct termios g_original_termios;
     extern bool g_termios_saved;
+#endif
     extern bool g_ncurses_initialized;
     extern int g_original_lines;
     extern int g_original_cols;
 
     // Global exit request flag (for SIGINT)
     extern std::atomic<bool> g_exit_requested;
+
+    // Portable home directory detection
+    inline std::string get_home_dir() {
+    #ifdef _WIN32
+        const char* home = std::getenv("USERPROFILE");
+        if (!home) home = std::getenv("HOMEDRIVE");
+        return home ? std::string(home) : "C:\\\\";
+    #else
+        const char* home = std::getenv("HOME");
+        return home ? std::string(home) : "/tmp";
+    #endif
+    }
 
     // =========================================================
     // XML error handler function declarations
